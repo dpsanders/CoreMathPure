@@ -1,40 +1,48 @@
-# dint64.jl — 128-bit floating-point type for correctly-rounded math
+# mfloat128.jl — 128-bit floating-point type for correctly-rounded math
 #
 # Translated from core-math's dint.h and pow.[ch]
 # Original: Copyright (c) 2022-2025 Paul Zimmermann and Tom Hubrecht (MIT license)
 
 """
-    DInt64
+    MFloat128
 
-128-bit floating-point number:
-  value = (-1)^sgn * (hi/2^64 + lo/2^128) * 2^ex
+Manual 128-bit floating-point number (non-IEEE). Uses a 128-bit mantissa
+stored as two UInt64 words (hi, lo), a signed exponent, and a sign bit:
+
+    value = (-1)^sgn * (hi/2^64 + lo/2^128) * 2^ex
+
 where hi has its most significant bit set (normalized form).
+
+Called "MFloat128" because it is a Manual (software-implemented) 128-bit float,
+as opposed to IEEE 754 binary128 (Float128). The "M" distinguishes it from
+hardware or standards-based 128-bit types. Corresponds to `dint64_t` in the
+original core-math C code.
 """
-struct DInt64
+struct MFloat128
     hi::UInt64
     lo::UInt64
     ex::Int64
     sgn::UInt64
 end
 
-const ZERO_DINT = DInt64(0x0, 0x0, -1076, 0x0)
-const MAGIC_DINT = DInt64(0x8000000000000000, 0x0, -10, 0x0)
+const ZERO_DINT = MFloat128(0x0, 0x0, -1076, 0x0)
+const MAGIC_DINT = MFloat128(0x8000000000000000, 0x0, -10, 0x0)
 
 # Get the 128-bit mantissa as UInt128
-@inline mantissa128(d::DInt64) = (UInt128(d.hi) << 64) | UInt128(d.lo)
+@inline mantissa128(d::MFloat128) = (UInt128(d.hi) << 64) | UInt128(d.lo)
 
-# Create DInt64 from 128-bit mantissa r, preserving ex and sgn
+# Create MFloat128 from 128-bit mantissa r, preserving ex and sgn
 @inline function from_mantissa(r::UInt128, ex::Int64, sgn::UInt64)
-    DInt64(UInt64(r >> 64), UInt64(r & typemax(UInt64)), ex, sgn)
+    MFloat128(UInt64(r >> 64), UInt64(r & typemax(UInt64)), ex, sgn)
 end
 
-Base.iszero(a::DInt64) = a.hi == 0
+Base.iszero(a::MFloat128) = a.hi == 0
 
 @inline cmp_i64(a::Int64, b::Int64) = (a > b) - (a < b)
 @inline cmp_u128(a::UInt128, b::UInt128) = (a > b) - (a < b)
 
 # Compare absolute values: -1 if |a| < |b|, 0 if equal, +1 if |a| > |b|
-function cmp_abs(a::DInt64, b::DInt64)
+function cmp_abs(a::MFloat128, b::MFloat128)
     iszero(a) && return iszero(b) ? 0 : -1
     iszero(b) && return 1
     c1 = cmp_i64(a.ex, b.ex)
@@ -50,18 +58,18 @@ end
     return e, m
 end
 
-# Convert a non-zero Float64 to DInt64
-function DInt64(b::Float64)
+# Convert a non-zero Float64 to MFloat128
+function MFloat128(b::Float64)
     ex, hi = fast_extract(b)
     t = leading_zeros(hi)
     sgn = UInt64(b < 0.0)
     hi = hi << t
     ex = ex - (t > 11 ? t - 12 : 0)
-    DInt64(hi, UInt64(0), ex, sgn)
+    MFloat128(hi, UInt64(0), ex, sgn)
 end
 
 # Normalize: ensure hi has its MSB set (if non-zero)
-function normalize(X::DInt64)
+function normalize(X::MFloat128)
     if X.hi != 0
         cnt = leading_zeros(X.hi)
         if cnt != 0
@@ -71,21 +79,21 @@ function normalize(X::DInt64)
             hi = X.hi
             lo = X.lo
         end
-        return DInt64(hi, lo, X.ex - cnt, X.sgn)
+        return MFloat128(hi, lo, X.ex - cnt, X.sgn)
     elseif X.lo != 0
         cnt = leading_zeros(X.lo)
         hi = X.lo << cnt
-        return DInt64(hi, UInt64(0), X.ex - 64 - cnt, X.sgn)
+        return MFloat128(hi, UInt64(0), X.ex - 64 - cnt, X.sgn)
     else
         return X
     end
 end
 
 # Unary negation
-Base.:(-)(a::DInt64) = DInt64(a.hi, a.lo, a.ex, UInt64(1) - a.sgn)
+Base.:(-)(a::MFloat128) = MFloat128(a.hi, a.lo, a.ex, UInt64(1) - a.sgn)
 
 # Addition with error bounded by 2 ulps (ulp_128)
-function Base.:(+)(a::DInt64, b::DInt64)
+function Base.:(+)(a::MFloat128, b::MFloat128)
     if (a.hi | a.lo) == 0
         return b
     end
@@ -95,7 +103,7 @@ function Base.:(+)(a::DInt64, b::DInt64)
         if xor(a.sgn, b.sgn) != 0
             return ZERO_DINT
         end
-        return DInt64(a.hi, a.lo, a.ex + 1, a.sgn)
+        return MFloat128(a.hi, a.lo, a.ex + 1, a.sgn)
     elseif c < 0
         a, b = b, a
     end
@@ -140,7 +148,7 @@ function Base.:(+)(a::DInt64, b::DInt64)
 end
 
 # Multiplication with error bounded by 6 ulps
-function Base.:(*)(a::DInt64, b::DInt64)
+function Base.:(*)(a::MFloat128, b::MFloat128)
     bh = UInt128(b.hi)
     bl = UInt128(b.lo)
 
@@ -159,8 +167,8 @@ function Base.:(*)(a::DInt64, b::DInt64)
     return from_mantissa(r, rex, rsgn)
 end
 
-# Multiply two DInt64 numbers, assuming b.lo == 0 (error bounded by 2 ulps)
-function mul_hi(a::DInt64, b::DInt64)
+# Multiply two MFloat128 numbers, assuming b.lo == 0 (error bounded by 2 ulps)
+function mul_hi(a::MFloat128, b::MFloat128)
     bh = UInt128(b.hi)
     hi_prod = UInt128(a.hi) * bh
     lo_prod = UInt128(a.lo) * bh
@@ -178,7 +186,7 @@ function mul_hi(a::DInt64, b::DInt64)
 end
 
 # Subnormalize for round-to-nearest (ties to even)
-function subnormalize(a::DInt64)
+function subnormalize(a::MFloat128)
     a.ex > -1023 && return a
 
     ex = -(1011 + a.ex)  # 12 <= ex <= 63
@@ -192,13 +200,13 @@ function subnormalize(a::DInt64)
     new_hi = hi << ex
 
     if new_hi == 0
-        return DInt64(UInt64(1) << 63, UInt64(0), a.ex + 1, a.sgn)
+        return MFloat128(UInt64(1) << 63, UInt64(0), a.ex + 1, a.sgn)
     end
-    return DInt64(new_hi, UInt64(0), a.ex, a.sgn)
+    return MFloat128(new_hi, UInt64(0), a.ex, a.sgn)
 end
 
-# Convert DInt64 to Float64 (round to nearest)
-function Base.Float64(a::DInt64)
+# Convert MFloat128 to Float64 (round to nearest)
+function Base.Float64(a::MFloat128)
     a = subnormalize(a)
 
     r_u = (a.hi >> 11) | (UInt64(0x3ff) << 52)

@@ -20,7 +20,7 @@ The algorithm has two paths:
    polynomial evaluates sin2π/cos2π of the residual. If the error bound proves the
    rounding is unambiguous, return immediately (~99.998% of inputs).
 
-2. **Accurate path** (`sin_accurate`): Falls back to 128-bit floating-point (`DInt64`)
+2. **Accurate path** (`sin_accurate`): Falls back to 128-bit floating-point (`MFloat128`)
    arithmetic with degree-11/10 polynomials and tables `S[256]`, `C[256]`. Two known
    hard-to-round exceptions are handled explicitly.
 
@@ -36,7 +36,7 @@ CoreMathPure/
 ├── extract_tables.jl       ← alternative extraction script
 ├── src/
 │   ├── CoreMathPure.jl     ← module definition
-│   ├── dint64.jl           ← DInt64 type (128-bit float) + arithmetic
+│   ├── mfloat128.jl        ← MFloat128 type (128-bit float) + arithmetic
 │   ├── sin_tables.jl       ← auto-generated lookup tables (~840 lines)
 │   └── sin.jl              ← cr_sin: fast path, accurate path, entry point
 └── test/
@@ -52,7 +52,7 @@ Direct C-to-Julia mapping:
 | C                           | Julia                                      |
 |-----------------------------|---------------------------------------------|
 | `unsigned __int128`         | `UInt128`                                   |
-| `dint64_t` (union)          | `struct DInt64` (immutable, 4 fields)       |
+| `dint64_t` (union)          | `struct MFloat128` (immutable, 4 fields)       |
 | `__builtin_clzll(x)`       | `leading_zeros(x)`                          |
 | `__builtin_fma(a,b,c)`     | `fma(a,b,c)`                                |
 | `f64_u` union               | `reinterpret(UInt64, x)` / `reinterpret(Float64, u)` |
@@ -69,5 +69,5 @@ Tables were extracted programmatically from the C source via `gen_tables.jl`
 - Replace manual bit manipulation with Julia idioms where possible
 - Use `@inline` and type annotations judiciously
 - Consider using `Base.BitInteger` operations
-- Make `DInt64` arithmetic feel natural with operator overloading
+- Make `MFloat128` arithmetic feel natural with operator overloading
 - Add docstrings

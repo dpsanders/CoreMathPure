@@ -1,6 +1,6 @@
 module CoreMathPure
 
-include("dint64.jl")
+include("mfloat128.jl")
 include("sin_tables.jl")
 include("sin.jl")
 

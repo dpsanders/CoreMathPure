@@ -25,10 +25,10 @@ function extract_dint_table(name, varname)
     m = match(pat, src)
     m === nothing && error("Could not find table $name")
     body = m.captures[1]
-    println("const $(varname) = DInt64[")
+    println("const $(varname) = MFloat128[")
     for e in eachmatch(r"\{\.hi\s*=\s*(0x[0-9a-f]+),\s*\.lo\s*=\s*(0x[0-9a-f]+),\s*\.ex\s*=\s*(-?\d+),\s*\.sgn\s*=\s*(\d+)\}", body)
         hi, lo, ex, sgn = e.captures
-        println("    DInt64($hi, $lo, $ex, $sgn),")
+        println("    MFloat128($hi, $lo, $ex, $sgn),")
     end
     println("]")
     println()
@@ -38,7 +38,7 @@ extract_dint_table("S", "S_TABLE")
 extract_dint_table("C", "C_TABLE")
 
 # ── PS (accurate sin polynomial) ──
-println("const PS_TABLE = DInt64[")
+println("const PS_TABLE = MFloat128[")
 m = match(r"static const dint64_t PS\[\] = \{([^}]+(?:\{[^}]*\}[^}]*)+)\};", src)
 if m === nothing
     # fallback: grab between "dint64_t PS[]" and next "static const"
@@ -50,20 +50,20 @@ else
 end
 for e in eachmatch(r"\{\.hi\s*=\s*(0x[0-9a-f]+),\s*\.lo\s*=\s*(0x[0-9a-f]+),\s*\.ex\s*=\s*(-?\d+),\s*\.sgn\s*=\s*(\d+)\}", body)
     hi, lo, ex, sgn = e.captures
-    println("    DInt64($hi, $lo, $ex, $sgn),")
+    println("    MFloat128($hi, $lo, $ex, $sgn),")
 end
 println("]")
 println()
 
 # ── PC (accurate cos polynomial) ──
-println("const PC_TABLE = DInt64[")
+println("const PC_TABLE = MFloat128[")
 i1 = something(findfirst("dint64_t PC[]", src)).stop
 i2 = findnext("static const", src, i1 + 1)
 i2 === nothing && (i2 = findnext("/* Table generated", src, i1 + 1))
 body = src[i1:first(i2)-1]
 for e in eachmatch(r"\{\.hi\s*=\s*(0x[0-9a-f]+),\s*\.lo\s*=\s*(0x[0-9a-f]+),\s*\.ex\s*=\s*(-?\d+),\s*\.sgn\s*=\s*(\d+)\}", body)
     hi, lo, ex, sgn = e.captures
-    println("    DInt64($hi, $lo, $ex, $sgn),")
+    println("    MFloat128($hi, $lo, $ex, $sgn),")
 end
 println("]")
 println()

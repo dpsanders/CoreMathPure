@@ -64,7 +64,7 @@ end
 # ───────────────────── accurate-path polynomial evaluations ─────────────────────
 
 # sin2pi(X) for 0 <= X < 2^-11
-function evalPS(X::DInt64, X2::DInt64)
+function evalPS(X::MFloat128, X2::MFloat128)
     Y = mul_hi(X2, PS[6])       # degree 11
     Y = (Y + PS[5]) * X2        # degree 9
     Y = (Y + PS[4]) * X2        # degree 7
@@ -75,7 +75,7 @@ function evalPS(X::DInt64, X2::DInt64)
 end
 
 # cos2pi(X) for 0 <= X < 2^-11
-function evalPC(X2::DInt64)
+function evalPC(X2::MFloat128)
     Y = mul_hi(X2, PC[6])       # degree 10
     Y = (Y + PC[5]) * X2        # degree 8
     Y = (Y + PC[4]) * X2        # degree 6
@@ -88,7 +88,7 @@ end
 # ───────────────────── argument reduction (accurate) ─────────────────────
 
 # Reduce X to X/(2pi) mod 1, with |error| < 2^-126.67 * |X_out|
-function reduce_dint(X::DInt64)
+function reduce_dint(X::MFloat128)
     e = X.ex
 
     if e <= 1  # |X| < 2
@@ -98,13 +98,13 @@ function reduce_dint(X::DInt64)
         u = UInt128(X.hi) * UInt128(T[1])  # T[0] in C
         lo += UInt64(u & typemax(UInt64))
         hi = UInt64(u >> 64) + UInt64(lo < UInt64(u & typemax(UInt64)))
-        X = DInt64(hi, lo, X.ex, X.sgn)
+        X = MFloat128(hi, lo, X.ex, X.sgn)
         old_ex = X.ex
         X = normalize(X)
         e_diff = old_ex - X.ex
         if e_diff != 0
             lo2 = X.lo | (tiny >> (64 - e_diff))
-            X = DInt64(X.hi, lo2, X.ex, X.sgn)
+            X = MFloat128(X.hi, lo2, X.ex, X.sgn)
         end
         return X
     end
@@ -150,24 +150,24 @@ function reduce_dint(X::DInt64)
         tiny = (c[2] << g) | (c[1] >> (64 - g))
     end
 
-    X = DInt64(hi, lo, 0, X.sgn)
+    X = MFloat128(hi, lo, 0, X.sgn)
     X = normalize(X)
     if X.ex < 0
         lo2 = X.lo | (tiny >> (64 + X.ex))
-        X = DInt64(X.hi, lo2, X.ex, X.sgn)
+        X = MFloat128(X.hi, lo2, X.ex, X.sgn)
     end
     return X
 end
 
 # Given X with 0 <= X < 1, return (i, X_new) such that X = i/2^11 + X_new
-function reduce2(X::DInt64)
+function reduce2(X::MFloat128)
     if X.ex <= -11
         return 0, X
     end
     sh = 64 - 11 - X.ex
     i = Int(X.hi >> sh)
     new_hi = X.hi & ((UInt64(1) << sh) - UInt64(1))
-    X = normalize(DInt64(new_hi, X.lo, X.ex, X.sgn))
+    X = normalize(MFloat128(new_hi, X.lo, X.ex, X.sgn))
     return i, X
 end
 
@@ -325,7 +325,7 @@ end
 function sin_accurate(x::Float64)
     absx = x > 0 ? x : -x
 
-    X = DInt64(absx)
+    X = MFloat128(absx)
     X = reduce_dint(X)
 
     neg = x < 0
@@ -345,7 +345,7 @@ function sin_accurate(x::Float64)
 
     if (i & 0x100) != 0
         is_sin = !is_sin
-        X = DInt64(X.hi, X.lo, X.ex, UInt64(1))    # negate X
+        X = MFloat128(X.hi, X.lo, X.ex, UInt64(1))    # negate X
         X = MAGIC_DINT + X                          # X -> 2^-11 - X
         i = 0x1ff - i
     end

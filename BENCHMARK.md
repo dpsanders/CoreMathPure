@@ -47,7 +47,7 @@ Only 0.014% fall through to the accurate path.
 
 2. **For very small and very large inputs**, the gap narrows to ~1.4–1.5x since both implementations spend most of their time on argument reduction.
 
-3. **The fast path handles 99.99%+ of inputs**, so the expensive accurate path rarely fires. The 128-bit `DInt64` arithmetic is only needed for the ~0.01% of "hard to round" cases.
+3. **The fast path handles 99.99%+ of inputs**, so the expensive accurate path rarely fires. The 128-bit `MFloat128` arithmetic is only needed for the ~0.01% of "hard to round" cases.
 
 4. **A 2.5x slowdown is remarkably good** for a pure Julia translation that guarantees correct rounding. The C original (core-math) reports similar overhead vs system libm. This suggests the Julia translation introduces negligible overhead beyond the algorithmic cost.
 

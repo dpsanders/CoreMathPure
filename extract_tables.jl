@@ -34,10 +34,10 @@ function extract_dint_array(name::String, varname::String, src::String)
     entries = collect(eachmatch(
         r"\{\.hi\s*=\s*(0x[0-9a-f]+),\s*\.lo\s*=\s*(0x[0-9a-f]+),\s*\.ex\s*=\s*(-?\d+),\s*\.sgn\s*=\s*(\d+)\}",
         block))
-    println("const $varname = DInt64[")
+    println("const $varname = MFloat128[")
     for (i, entry) in enumerate(entries)
         hi, lo, ex, sgn = entry.captures
-        println("    DInt64($hi, $lo, $ex, $sgn),  # $(i-1)")
+        println("    MFloat128($hi, $lo, $ex, $sgn),  # $(i-1)")
     end
     println("]")
     println()
